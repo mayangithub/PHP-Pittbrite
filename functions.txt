@@ -1,0 +1,477 @@
+<?php 
+	session_start();
+	require_once("dbconnect.php");
+	dbconnect();
+
+/*navigator css function*/
+function nav($button) {
+	$url = $_SERVER["REQUEST_URI"];
+	$pos = strpos($url, $button);
+	if ($pos>0) {
+		return "class='active'";
+	}
+}
+/*check whether fill in email and password*/
+function loginFill($email, $pwd) {
+	if (empty($email) || empty($pwd)) {
+		return "<p class='error'>Please enter both email and password. </p>";
+	}
+	return null;
+}
+
+
+/*
+	check the credentials
+	both input the right username and password
+	otherwise, return false
+	visit database by query
+*/
+function testCredentials($email, $pwd) {
+		$email = mysql_real_escape_string($email);
+		$pwd = mysql_real_escape_string($pwd);
+		$query = "SELECT first_name FROM yam14.F_user WHERE email= BINARY '" . $email . "' AND password = BINARY '". $pwd . "';";
+		//echo $query;
+		$result = mysql_query($query);
+		if (!$result) {
+			$message='Invalid Query' .mysql_errno()." \n";
+		    $message .= 'Whole Query' . $query;
+		    die($message);
+		}//end if
+		
+		if(mysql_affected_rows()==1 ){
+			while($row = mysql_fetch_assoc($result)){
+				$_SESSION['username']  = $row['first_name'];
+				$_SESSION['email'] = $email;
+			}		
+			return null;
+		}else{
+			return "<p class='error'>Please enter the right credentials. </p>";
+		}
+		mysql_free_result($result);	
+}
+/*if pass the chedential test, redirect page*/
+function login($email, $pwd) {
+	if (empty(loginFill($email, $pwd))) {
+		if (empty(testCredentials($email, $pwd))) {
+			redirect();
+		}
+	}
+}
+/*redirect page to home page
+get session username
+ensure user logged in*/
+function redirect() {
+	$username = $_SESSION['username'];
+	if (!empty($username)) {
+		header("Location: index.php");
+	}
+}
+
+/*redirect create page
+if user not logged in*/
+function redirectCreate() {
+	$username = $_SESSION['username'];
+	if (empty($username)) {
+		header("Location: login.php");
+	}
+}
+
+/*check register form
+require input all fields*/
+function registerFill($firstname, $lastname, $email, $password) {
+	if (empty($firstname) || empty($lastname) || empty($email) || empty($password)) {
+		return "<p class='error'>Please enter all fields. </p>";
+	}
+	return null;
+}
+/*register new  user 
+check whether email already existed
+if not existed, insert new user
+*/
+function registerNewUser($firstname, $lastname, $email, $password) {
+	$firstname = mysql_real_escape_string($firstname);
+	$lastname = mysql_real_escape_string($lastname);
+	$email = mysql_real_escape_string($email);
+	$password = mysql_real_escape_string($password);
+	$query = "SELECT first_name FROM yam14.F_user WHERE email=BINARY '" . $email . "';";
+	$result = mysql_query($query);
+	if (!$result) {
+		$message='Invalid Query' .mysql_errno()." \n";
+	    $message .= 'Whole Query' . $query;
+	    die($message);
+	}//end if
+	
+	if(mysql_affected_rows()>=1 ){
+			return "<p class='error'>Email already existed. Retry!</p>";
+	}
+	
+	$query = "INSERT INTO yam14.F_user (email, first_name, last_name, date_created, password) VALUES ('" . $email . "', '" . $firstname . "','". $lastname ."', NOW(), '". $password . "');";
+	//echo $query;
+	mysql_query($query);
+		
+	if(mysql_affected_rows()==1 ){
+		return null;
+	}else{
+		return "<p class='error'>Register Failed. Retry!</p>";
+	}
+	
+}
+/*register user 
+after pass all test
+set session with username and email*/
+function register($firstname, $lastname, $email, $password){
+	if (empty(registerFill($firstname, $lastname, $email, $password))) {
+		if(empty(registerNewUser($firstname, $lastname, $email, $password))){
+			$_SESSION['username']  = $firstname;
+			$_SESSION['email'] = $email;
+			redirectLogin();
+		}
+	}
+}
+/*redirect login page
+if user logged in */
+function redirectLogin() {
+	$username = $_SESSION['username'];
+	if (!empty($username)) {
+		header("Location: index.php");
+	}
+}
+/*list categories if user click filter button
+sticky form*/
+function listAllCatPost($catarray) {
+	$query = "SELECT c_id, c_name FROM yam14.F_category;";
+	$result = mysql_query($query);
+	if (!$result) {
+		$message='Invalid Query' .mysql_errno()." \n";
+	    $message .= 'Whole Query' . $query;
+	    die($message);
+	}//end if
+	
+	while($row = mysql_fetch_assoc($result)){
+		  echo "<input type='checkbox' name='cat[]' value='" . $row['c_id'] . "' " . checkCheckboxes($catarray, $row['c_id']). " >&nbsp;&nbsp;" . $row['c_name'] . "<br />";
+	}	
+	
+	mysql_free_result($result);	
+}
+/*list categories if user choose one category on the home page*/
+function listAllCatGet($cat) {
+	$cat = html_entity_decode($cat);
+	$query = "SELECT c_id, c_name FROM yam14.F_category;";
+	$result = mysql_query($query);
+	if (!$result) {
+		$message='Invalid Query' .mysql_errno()." \n";
+	    $message .= 'Whole Query' . $query;
+	    die($message);
+	}//end if
+	
+	while($row = mysql_fetch_assoc($result)){
+		  echo "<input type='checkbox' name='cat[]' value='" . $row['c_id'] . "' " . checkCheckbox($cat, $row['c_name']). " >&nbsp;&nbsp;" . $row['c_name'] . "<br />";
+	}	
+	
+	mysql_free_result($result);	
+}
+
+/*list all topics 
+after user click filter button
+give the sticky form*/
+function listAllTopic($tagarray) {
+	$query = "SELECT tag_id, tag_name FROM yam14.F_topic;";
+	$result = mysql_query($query);
+	if (!$result) {
+		$message='Invalid Query' .mysql_errno()." \n";
+	    $message .= 'Whole Query' . $query;
+	    die($message);
+	}//end if
+	
+	while($row = mysql_fetch_assoc($result)){
+		  echo "<input type='checkbox' name='topic[]' value='" . $row['tag_id']  . "' " . checkCheckboxes($tagarray, $row['tag_id']) . " >&nbsp;&nbsp;" . $row['tag_name'] . "<br />";
+	}	
+	
+	mysql_free_result($result);	
+}
+/*check checkbox sticky form function after filtering*/
+function checkCheckboxes($choices, $value) {
+	foreach ($choices as $key => $choice) {
+		if ($choice == $value) {
+			return "checked";
+		}
+	}
+}
+/*check checkbox sticky form function after homepage*/
+function checkCheckbox($choice, $value) {
+	if ($choice == $value) {
+		return "checked";
+	}
+}
+/*update event status before list events
+check by datetime*/
+function updateEventStatus() {
+	$query = "UPDATE `yam14`.`F_event` SET `status` = 'ended' WHERE end_datetime < now()  AND e_id>0;";
+	mysql_query($query);
+	$query = "UPDATE `yam14`.`F_event` SET `status` = 'live' WHERE start_datetime > now() AND e_id>0;";
+	mysql_query($query);
+	$query = "UPDATE `yam14`.`F_event` SET `status` = 'started' WHERE start_datetime <= now() AND end_datetime > now() AND e_id>0;";
+	mysql_query($query);
+}
+
+/*list events after filter 
+according to categories and tags
+give different query then do selection*/
+function listPostEvents($catarray, $tagarray) {
+	updateEventStatus();
+	if (empty($catarray) && empty($tagarray)) {
+		$query = "SELECT e_id, e_title, e_description, c_name, tag_name, start_datetime, end_datetime, capacity, F_venue.name AS vname, address,F_organizer.name AS oname, F_event.status  
+		FROM yam14.F_event, yam14.F_venue, yam14.F_category, yam14.F_topic, yam14.F_organizer
+		WHERE F_event.venue_id = F_venue.v_id 
+		AND F_category.c_id = F_event.c_id 
+		AND F_topic.tag_id = F_event.tag_id 
+		AND F_organizer.o_id = F_event.organizer_id 
+		AND status<>'ended';";
+	}elseif (!empty($catarray) && empty($tagarray)) {
+		$query = "SELECT e_id, e_title, e_description, c_name, tag_name, start_datetime, end_datetime, capacity, F_venue.name AS vname, address,F_organizer.name AS oname, F_event.status 
+		FROM yam14.F_event, yam14.F_venue, yam14.F_category, yam14.F_topic, yam14.F_organizer
+		WHERE F_event.venue_id = F_venue.v_id 
+		AND F_category.c_id = F_event.c_id 
+		AND F_topic.tag_id = F_event.tag_id 
+		AND F_organizer.o_id = F_event.organizer_id 
+		AND status<>'ended' 
+		AND (";
+		$ccount = count($catarray);
+		for ($i = 0; $i < $ccount; $i++) {
+			if ($i!==$ccount-1) {
+				$query .= "F_event.c_id = $catarray[$i] OR ";
+			}else {
+				$query .= "F_event.c_id = $catarray[$i]";
+			}
+		}//end for
+		$query .= ");";
+	}//end elseif catarray not empty, empty tagarray
+	elseif (empty($catarray) && !empty($tagarray)) {
+		$query = "SELECT e_id, e_title, e_description, c_name, tag_name, start_datetime, end_datetime, capacity, F_venue.name AS vname, address,F_organizer.name AS oname, F_event.status  
+		FROM yam14.F_event, yam14.F_venue, yam14.F_category, yam14.F_topic, yam14.F_organizer
+		WHERE F_event.venue_id = F_venue.v_id 
+		AND F_category.c_id = F_event.c_id 
+		AND F_topic.tag_id = F_event.tag_id 
+		AND F_organizer.o_id = F_event.organizer_id 
+		AND status<>'ended' 
+		AND (";
+		$tcount = count($tagarray);
+		for ($j = 0; $j < $tcount; $j++) {
+			if ($j!==$tcount-1) {
+				$query .= "F_event.tag_id = $tagarray[$j] OR ";
+			}else {
+				$query .= "F_event.tag_id = $tagarray[$j]";
+			}
+		}//end for
+		$query .= ");";
+	}else {
+		$query = "SELECT e_id, e_title, e_description, c_name, tag_name, start_datetime, end_datetime, capacity, F_venue.name AS vname, address,F_organizer.name AS oname, F_event.status 
+		FROM yam14.F_event, yam14.F_venue, yam14.F_category, yam14.F_topic, yam14.F_organizer
+		WHERE F_event.venue_id = F_venue.v_id 
+		AND F_category.c_id = F_event.c_id 
+		AND F_topic.tag_id = F_event.tag_id 
+		AND F_organizer.o_id = F_event.organizer_id 
+		AND status<>'ended' 
+		AND (";
+		$ccount = count($catarray);
+		for ($i = 0; $i < $ccount; $i++) {
+			if ($i!==$ccount-1) {
+				$query .= "F_event.c_id = $catarray[$i] OR ";
+			}else {
+				$query .= "F_event.c_id = $catarray[$i]";
+			}
+		}//end for
+		$query .= ") AND (";
+		$tcount = count($tagarray);
+		for ($j = 0; $j < $tcount; $j++) {
+			if ($j!==$tcount-1) {
+				$query .= "F_event.tag_id = $tagarray[$j] OR ";
+			}else {
+				$query .= "F_event.tag_id = $tagarray[$j]";
+			}
+		}//end for
+		$query .= ");";
+		
+	}//end else both not empty
+//	echo $query;
+	$result = mysql_query($query);
+	if (!$result) {
+		$message='Invalid Query' .mysql_errno()." \n";
+	    $message .= 'Whole Query' . $query;
+	    die($message);
+	}//end if
+	
+	while($row = mysql_fetch_assoc($result)){
+		echo "<div class='card'>";
+		if (file_exists("images/logo/" . $row['e_id'] . ".jpg")) {
+			echo "<img src=\"images/logo/" . $row['e_id'] . ".jpg\" alt=\"\" width=\"100px\" height=\"100px\" style=\"float: left; margin: 10px;\"/>";
+		}else {
+			echo "<img src=\"images/default.jpg\" alt=\"\" width=\"100px\" height=\"100px\" style=\"float: left; margin: 10px;\"/>";
+		}
+		
+		echo "<h4><a href=\"event.php?eid={$row['e_id']}\">{$row['e_title']}</a></h4>";
+		echo "<p>{$row['c_name']} {$row['tag_name']} By {$row['oname']}</p>";
+		echo "<p>" . date('l, M d, Y',strtotime($row['start_datetime'])) . "  " . date('H:i A',strtotime($row['start_datetime'])) . "</p>";
+		echo "<p>Location: " . $row['vname'] . "</p>";
+		echo "</div>";
+		
+	}	
+	
+	mysql_free_result($result);	
+	
+}//end function listPostEvents
+
+
+/*list events after home page
+corespondent to category selected*/
+function listGetEvents($cat) {
+	updateEventStatus();
+	$query = "SELECT e_id, e_title, e_description, c_name, tag_name, start_datetime, end_datetime, capacity, F_venue.name AS vname, address,F_organizer.name AS oname, F_event.status  
+	FROM yam14.F_event, yam14.F_venue, yam14.F_category, yam14.F_topic, yam14.F_organizer
+	WHERE F_event.venue_id = F_venue.v_id 
+	AND F_category.c_id = F_event.c_id 
+	AND F_topic.tag_id = F_event.tag_id 
+	AND F_organizer.o_id = F_event.organizer_id 
+	AND F_category.c_name = '$cat' 
+	AND status<>'ended';";
+	$result = mysql_query($query);
+	if (!$result) {
+		$message='Invalid Query' .mysql_errno()." \n";
+	    $message .= 'Whole Query' . $query;
+	    die($message);
+	}//end if
+	
+	while($row = mysql_fetch_assoc($result)){
+		echo "<div class='card'>";
+		if (file_exists("images/logo/" . $row['e_id'] . ".jpg")) {
+			echo "<img src=\"images/logo/" . $row['e_id'] . ".jpg\" alt=\"\" width=\"100px\" height=\"100px\" style=\"float: left; margin: 10px;\"/>";
+		}else {
+			echo "<img src=\"images/default.jpg\" alt=\"\" width=\"100px\" height=\"100px\" style=\"float: left; margin: 10px;\"/>";
+		}
+		
+		echo "<h4><a href=\"event.php?eid={$row['e_id']}\">{$row['e_title']}</a></h4>";
+		echo "<p>{$row['c_name']} {$row['tag_name']} By {$row['oname']}</p>";
+		echo "<p>" . date('l, M d, Y',strtotime($row['start_datetime'])) . "  " . date('H:i A',strtotime($row['start_datetime'])) . "</p>";
+		echo "<p>Location: " . $row['vname'] . "</p>";
+		echo "</div>";
+		
+	}	
+	
+	mysql_free_result($result);	
+	
+}//end function listGetEvents
+
+
+
+
+
+/*check time function when create new event*/
+function checkTime($startdt, $enddt) {
+	if ($startdt<$enddt) {
+		return true;
+	}else {
+		return false;
+	}
+}
+
+
+/*list category in dropdown list when creating new event*/
+function listCategory($category) {
+	$category = mysql_real_escape_string($category);
+	$query = "SELECT c_id, c_name FROM yam14.F_category;";
+	$result = mysql_query($query);
+	if (!$result) {
+		$message='Invalid Query' .mysql_errno()." \n";
+	    $message .= 'Whole Query' . $query;
+	    die($message);
+	}//end if
+	
+	while($row = mysql_fetch_assoc($result)){
+		  echo "<option value=\"" . $row['c_id'] . "\" ";
+		  echo checkDropdown($category, $row['c_id']);
+		  echo  ">" . $row['c_name'] . "</option>";
+	}	
+	
+	mysql_free_result($result);	
+}
+
+/*list topics in dropdown list when create new event*/
+function listTopic($topic) {
+	$query = "SELECT tag_id, tag_name FROM yam14.F_topic;";
+	$result = mysql_query($query);
+	if (!$result) {
+		$message='Invalid Query' .mysql_errno()." \n";
+	    $message .= 'Whole Query' . $query;
+	    die($message);
+	}//end if
+	
+	while($row = mysql_fetch_assoc($result)){
+		  echo "<option value=\"" . $row['tag_id'] . "\" ";
+		  echo checkDropdown($topic, $row['tag_id']) ;
+		  echo ">" . $row['tag_name'] . "</option>";
+	}	
+	
+	mysql_free_result($result);	
+}
+/*list venue in dropdown list when creating new event*/
+function listVenue($venue) {
+	$query = "SELECT v_id, name FROM yam14.F_venue;";
+	$result = mysql_query($query);
+	if (!$result) {
+		$message='Invalid Query' .mysql_errno()." \n";
+	    $message .= 'Whole Query' . $query;
+	    die($message);
+	}//end if
+	
+	while($row = mysql_fetch_assoc($result)){
+		  echo "<option value=\"" . $row['v_id'] . "\" ";
+		  echo checkDropdown($venue, $row['v_id']) ;
+		  echo ">" . $row['name'] . "</option>";
+	}	
+	
+	mysql_free_result($result);	
+}
+
+/*dropdown list sticky form*/
+function checkDropdown($option, $value) {
+		if ($option == $value) {
+			return "selected";
+		}
+}
+
+/*if the field is empty but not 0
+output error */
+function testField($input) {
+	if (empty($input)&&$input!=="0") {
+		echo "Required.";
+	}
+}
+
+/*test whether all required fields are entered*/
+function testRequired($title, $location, $ticketname, $available, $price) {
+	if (!empty($title)&&!empty($location)&&!empty($ticketname)&&!empty($available)) {
+		if (empty($price)&&$price!=="0") {
+			return false;
+		}else {
+			return true;
+		}
+	}//no empty
+	return false;
+}
+/*test file size larger than 100k*/
+function testFileSize($filesize) {
+	if ($filesize>102400) {
+		return "<label style=\"color: red;\">Please select a file less than 100K. </label>";
+	}
+}
+/*test file type is not an image type*/
+function testFileType($filetype) {
+	if ($filetype!="image/jpg" && $filetype != "image/png" && $filetype != "image/jpeg"&& $filetype != "image/gif") {
+		return "<label style=\"color: red;\">Please select an image file. </label>";
+	}
+}
+
+
+
+
+ ?>

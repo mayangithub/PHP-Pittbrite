@@ -1,0 +1,29 @@
+body {
+  padding-top: 70px;
+  padding-bottom: 30px;
+}
+
+.theme-dropdown .dropdown-menu {
+  position: static;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.theme-showcase > p > .btn {
+  margin: 5px 0;
+}
+
+.theme-showcase .navbar .container {
+  width: auto;
+}
+
+
+.navbar-inverse {
+    background-image: linear-gradient(to bottom, rgba(40, 74, 125, 0.73) 0px, rgba(5, 198, 251, 1) 100%);
+    background-repeat: repeat-x;
+}
+
+header{
+	margin-left: auto;
+	margin-right: auto;
+}
